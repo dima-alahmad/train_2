@@ -9,12 +9,21 @@ import {
   HttpCode,
   HttpStatus,
   Res,
+  ValidationPipe,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { UpdateUserChangesDto } from '../library.dto.js';
+import { CreateUserDto, UpdateUserChangesDto } from '../library.dto.js';
 import { UsersService } from './users.service.js';
 import { DbIntPipe } from '../library/pipes/intpipe.js';
 import { Roles } from '../library/guards/roles.decorator.js';
+import { UpdateUserPipe } from '../library/pipes/update-user.pipe.js';
+import { Public } from '../library/guards/public.decorator.js';
+import {
+  ActorRole,
+  ActorUserId,
+} from '../library/decorators/actor-role.decorator.js';
+import type { UserRole } from '../library/library.types.js';
+import { assertUserAccess } from '../library/library.helpers.js';
 
 @Controller('users')
 export class UsersController {
@@ -28,13 +37,22 @@ export class UsersController {
 
   @Get(':id')
   @Roles(['admin', 'member'])
-  findUser(@Param('id', DbIntPipe) id: number) {
+  findUser(
+    @Param('id', DbIntPipe) id: number,
+    @ActorRole() actorRole?: UserRole,
+    @ActorUserId() actorUserId?: number,
+  ) {
+    assertUserAccess(id, actorRole, actorUserId);
     return this.usersService.findById(id);
   }
 
   @Post()
+  @Public()
   @HttpCode(HttpStatus.CREATED)
-  createUser(@Body() userData: { name: string; email: string }) {
+  createUser(
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    userData: CreateUserDto,
+  ) {
     return this.usersService.createUser(userData.name, userData.email);
   }
 
@@ -42,7 +60,7 @@ export class UsersController {
   @Roles(['admin'])
   updateUserChanges(
     @Param('id', DbIntPipe) id: number,
-    @Body() changes: UpdateUserChangesDto,
+    @Body(UpdateUserPipe) changes: UpdateUserChangesDto,
   ) {
     return this.usersService.updateChanges(id, changes);
   }

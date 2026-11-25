@@ -7,14 +7,19 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  ValidationPipe,
 } from '@nestjs/common';
-import { LoanActionDto } from '../library.dto.js';
-import type { BorrowableId, SearchCriteria, UserId } from '../library/library.types.js';
+import { LoanActionDto, ReturnLoanDto } from '../library.dto.js';
+
 import type { UserRole } from '../library/library.types.js';
 import { LoansService } from './loans.service.js';
 import { DbIntPipe } from '../library/pipes/intpipe.js';
 import { Roles } from '../library/guards/roles.decorator.js';
-import { ActorRole } from '../library/decorators/actor-role.decorator.js';
+import {
+  ActorRole,
+  ActorUserId,
+} from '../library/decorators/actor-role.decorator.js';
+import { assertUserAccess } from '../library/library.helpers.js';
 
 @Controller('loans')
 export class LoansController {
@@ -30,18 +35,35 @@ export class LoansController {
   @Roles(['admin', 'member'])
   @HttpCode(HttpStatus.CREATED)
   async borrow(
-    @Body()
-    loanDto: LoanActionDto & {
-      userId: UserId;
-      borrowableOrQuery: BorrowableId | string | SearchCriteria;
-    },
+    @Body(
+      new ValidationPipe({
+        transform: true,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      }),
+    )
+    loanDto: LoanActionDto,
     @ActorRole() actorRole?: UserRole,
+    @ActorUserId() actorUserId?: number,
   ) {
+    assertUserAccess(loanDto.userId, actorRole, actorUserId);
+
     const loan = await this.loansService.borrowAsync(
       loanDto.userId,
       loanDto.borrowableOrQuery,
     );
-    void actorRole;
+
+    if (actorRole === 'admin') {
+      return {
+        message: 'Loan request completed',
+        loan,
+        adminMeta: {
+          processedBy: 'admin',
+          totalActiveLoans: this.loansService.activeLoans.length,
+        },
+      };
+    }
+
     return {
       message: 'Loan request completed',
       loan,
@@ -53,11 +75,23 @@ export class LoansController {
   @HttpCode(HttpStatus.OK)
   async returnBorrowable(
     @Param('id', DbIntPipe) BorrowableId: number,
-    @Body() body: { userId: UserId; query?: string | SearchCriteria },
+    @Body(
+      new ValidationPipe({
+        transform: true,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      }),
+    )
+    body: ReturnLoanDto,
     @ActorRole() actorRole?: UserRole,
+    @ActorUserId() actorUserId?: number,
   ) {
-    await this.loansService.returnAsync(body.userId, body.query ?? BorrowableId);
-    void actorRole;
+    assertUserAccess(body.userId, actorRole, actorUserId);
+
+    await this.loansService.returnAsync(
+      body.userId,
+      body.query ?? BorrowableId,
+    );
     return {
       message: `Item #${BorrowableId} returned for user #${body.userId}`,
     };

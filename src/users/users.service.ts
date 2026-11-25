@@ -1,6 +1,5 @@
-import { Injectable } from '@nestjs/common';
-//import { User, UserChanges, UserId, findOrThrow } from '../library/library.models.js';
-import { User} from '../library/library.models.js';
+import { ConflictException, Injectable } from '@nestjs/common'; //import { User, UserChanges, UserId, findOrThrow } from '../library/library.models.js';
+import { User } from '../library/library.models.js';
 import { findOrThrow } from '../library/library.helpers.js';
 import type { UserChanges, UserId } from '../library/library.types.js';
 @Injectable()
@@ -31,9 +30,13 @@ export class UsersService {
     user.update(changes);
     return user;
   }
-
   remove(id: UserId): void {
-    findOrThrow(this.users, id, 'User');
+    const user = findOrThrow(this.users, id, 'User');
+
+    if (user.hasActiveLoans()) {
+      throw new ConflictException('Cannot delete a user with active loans');
+    }
+
     this.users.delete(id);
   }
 }

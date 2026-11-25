@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { UserRole } from '../../library/library.types.js';
@@ -10,9 +11,9 @@ import { Roles } from './roles.decorator.js';
 
 const ALLOWED_ROLES: ReadonlySet<UserRole> = new Set(['admin', 'member']);
 
-type RequestWithRoles = {
-  headers?: Record<string, string | string[] | undefined>;
+type AuthenticatedRequest = {
   user?: {
+    sub?: string | number;
     roles?: string[];
     role?: string;
   };
@@ -33,21 +34,15 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<RequestWithRoles>();
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
-    const headerRoleRaw = request.headers?.['x-user-role'];
-    const headerCandidates =
-      typeof headerRoleRaw === 'string'
-        ? headerRoleRaw
-            .split(',')
-            .map((r) => r.trim().toLowerCase())
-            .filter(Boolean)
-        : [];
+    if (!request.user) {
+      throw new UnauthorizedException('Authentication required');
+    }
 
     const rawCandidates = [
-      ...(request.user?.roles ?? []),
-      ...(request.user?.role ? [request.user.role] : []),
-      ...headerCandidates,
+      ...(request.user.roles ?? []),
+      ...(request.user.role ? [request.user.role] : []),
     ].map((r) => r.trim().toLowerCase());
 
     const userRoles: UserRole[] = rawCandidates.filter(isUserRole);

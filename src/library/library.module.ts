@@ -16,8 +16,17 @@ import { libraryMiddleware } from './middleware/libraryMiddleware.js';
 import { RolesGuard } from './guards/roles.js';
 import { RequestTimingInterceptor } from './interceptors/time.interceptor.js';
 import { ResponseEnvelopeInterceptor } from './interceptors/responseenvelope.interceptor.js';
+import { JwtModule } from '@nestjs/jwt';
+import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 
 @Module({
+  imports: [
+    JwtModule.register({
+      global: true,
+      secret: process.env.JWT_SECRET,
+      signOptions: { expiresIn: '1h' },
+    }),
+  ],
   controllers: [BorrowablesController, UsersController, LoansController],
   providers: [
     BorrowablesService,
@@ -25,11 +34,7 @@ import { ResponseEnvelopeInterceptor } from './interceptors/responseenvelope.int
     LoansService,
     {
       provide: APP_GUARD,
-      useClass: RolesGuard,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: RequestTimingInterceptor,
+      useClass: JwtAuthGuard,
     },
     {
       provide: APP_INTERCEPTOR,

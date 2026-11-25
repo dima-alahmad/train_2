@@ -1,4 +1,3 @@
-import type { Book } from './library.models.js';
 
 export type BorrowableId = number;
 export type UserId = number;

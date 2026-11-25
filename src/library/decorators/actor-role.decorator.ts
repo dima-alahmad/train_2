@@ -4,8 +4,8 @@ import type { UserRole } from '../../library/library.types.js';
 const ALLOWED_ROLES: ReadonlySet<UserRole> = new Set(['admin', 'member']);
 
 type RequestWithActor = {
-  headers?: Record<string, string | string[] | undefined>;
   user?: {
+    sub?: string | number;
     roles?: string[];
     role?: string;
   };
@@ -19,28 +19,34 @@ function parseRole(raw?: string): UserRole | undefined {
     : undefined;
 }
 
+export function parseActorUserId(raw: unknown): number | undefined {
+  if (typeof raw === 'number') {
+    return Number.isSafeInteger(raw) && raw > 0 ? raw : undefined;
+  }
+
+  if (typeof raw !== 'string' || !/^[1-9]\d*$/.test(raw)) {
+    return undefined;
+  }
+
+  const userId = Number(raw);
+  return Number.isSafeInteger(userId) ? userId : undefined;
+}
+
 export const ActorRole = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): UserRole | undefined => {
     const request = ctx.switchToHttp().getRequest<RequestWithActor>();
+    const roles = [
+      parseRole(request.user?.role),
+      ...(request.user?.roles ?? []).map(parseRole),
+    ].filter((role): role is UserRole => role !== undefined);
 
-    if (request.user?.role) {
-      const fromUserRole = parseRole(request.user.role);
-      if (fromUserRole) return fromUserRole;
-    }
+    return roles.includes('admin') ? 'admin' : roles[0];
+  },
+);
 
-    if (Array.isArray(request.user?.roles)) {
-      for (const r of request.user.roles) {
-        const parsed = parseRole(r);
-        if (parsed) return parsed;
-      }
-    }
-
-    const headerVal = request.headers?.['x-user-role'];
-    if (typeof headerVal === 'string') {
-      const firstToken = headerVal.split(',')[0];
-      return parseRole(firstToken);
-    }
-
-    return undefined;
+export const ActorUserId = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext): number | undefined => {
+    const request = ctx.switchToHttp().getRequest<RequestWithActor>();
+    return parseActorUserId(request.user?.sub);
   },
 );

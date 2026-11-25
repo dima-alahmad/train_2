@@ -1,3 +1,4 @@
+process.loadEnvFile();
 import { NestFactory } from '@nestjs/core';
 import { AppModule, ObserveInstrument } from './app.module.js';
 import { GlobalHttpExceptionFilter } from './http-exception.filter.js';

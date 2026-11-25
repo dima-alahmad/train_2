@@ -1,5 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
-import type { BorrowableId, SearchCriteria, UserChanges, UserId } from './library.types.js';
+import type {
+  BorrowableId,
+  SearchCriteria,
+  UserChanges,
+  UserId,
+} from './library.types.js';
 
 export abstract class Borrowable {
   private static nextId = 1;
@@ -125,6 +130,10 @@ export class User {
 
   removeLoan(id: BorrowableId): void {
     this.borrowed.delete(id);
+  }
+
+  hasActiveLoans(): boolean {
+    return this.borrowed.size > 0;
   }
 
   hasLoan(id: BorrowableId): boolean {

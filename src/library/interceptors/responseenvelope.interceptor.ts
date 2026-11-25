@@ -8,7 +8,7 @@ import type { Response } from 'express';
 import { map, Observable } from 'rxjs';
 
 export interface EnvelopedResponse<T> {
-  ok: true;
+  success: true;
   data: T;
 }
 
@@ -28,7 +28,7 @@ export class ResponseEnvelopeInterceptor<T>
           return value;
         }
         return {
-          ok: true,
+         success: true,
           data: value,
         };
       }),

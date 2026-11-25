@@ -1,3 +1,26 @@
+import { Transform } from 'class-transformer';
+import { Allow, IsDefined, IsInt, IsOptional, Min } from 'class-validator';
+import type { BorrowableId, SearchCriteria } from './library/library.types.js';
+import { IsEmail, IsNotEmpty, IsString, Matches } from 'class-validator';
+
+export class CreateUserDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString({ message: 'Name must be a string' })
+  @IsNotEmpty({ message: 'Name is required' })
+  @Matches(/^(?!\d+$).+$/, {
+    message: 'Name cannot consist only of numbers',
+  })
+  name!: string;
+
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
+  @IsString({ message: 'Email must be a string' })
+  @IsNotEmpty({ message: 'Email is required' })
+  @IsEmail({}, { message: 'Valid email is required' })
+  email!: string;
+}
+
 export type CreateBorrowableDto =
   | {
       type: 'book';
@@ -46,6 +69,20 @@ export class SearchBorrowableQueryDto {
 }
 
 export class LoanActionDto {
-  userId: number;
-  borrowableIdentifier: string;
+  @IsInt({ message: 'userId must be a number' })
+  @Min(1)
+  userId!: number;
+
+  @IsDefined()
+  borrowableOrQuery!: BorrowableId | string | SearchCriteria;
+}
+
+export class ReturnLoanDto {
+  @IsInt({ message: 'userId must be a number' })
+  @Min(1)
+  userId!: number;
+
+  @IsOptional()
+  @Allow()
+  query?: string | SearchCriteria;
 }

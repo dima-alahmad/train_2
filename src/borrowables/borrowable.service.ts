@@ -89,6 +89,12 @@ export class BorrowablesService {
   }
   replace(id: BorrowableId, dto: CreateBorrowableDto): Borrowable {
     const existing = this.findById(id);
+    const borrowedCount = existing.getTotalCopies - existing.getAvailableCopies;
+    if (borrowedCount > 0) {
+      throw new BadRequestException(
+        'Cannot replace an item while copies are currently borrowed',
+      );
+    }
 
     if (typeof dto.title !== 'string' || dto.title.trim().length === 0) {
       throw new BadRequestException('Please provide a title');
@@ -339,8 +345,14 @@ export class BorrowablesService {
     return matches[0];
   }
 
-  remove(id: BorrowableId): void {
-    this.findById(id);
+ remove(id: BorrowableId): void {
+    const item = this.findById(id);
+    const borrowedCount = item.getTotalCopies - item.getAvailableCopies;
+    if (borrowedCount > 0) {
+      throw new BadRequestException(
+        'Cannot delete an item while copies are currently borrowed',
+      );
+    }
     this.items.delete(id);
   }
 }
